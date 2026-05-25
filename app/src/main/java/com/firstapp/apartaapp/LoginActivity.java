@@ -9,6 +9,7 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,7 +31,7 @@ import retrofit2.Response;
 public class LoginActivity extends AppCompatActivity {
 
     private TextInputEditText etEmail, etPassword;
-    private MaterialButton btnLogin, btnCreateAccount;
+    private MaterialButton btnLogin;
     private ProgressBar progressBar;
     private ApiService apiService;
 
@@ -39,6 +40,24 @@ public class LoginActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
+
+        // Check if user already logged in
+        SharedPreferences sharedPreferences =
+                getSharedPreferences("user_session", MODE_PRIVATE);
+
+// Get saved auth token
+        String token = sharedPreferences.getString("auth_token", null);
+
+// If token exists
+        if (token != null) {
+
+            // Open MainActivity directly
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            startActivity(intent);
+
+            // Close LoginActivity
+            finish();
+        }
 
         // Apply window insets for immersive dark UI
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.login_main), (v, insets) -> {
@@ -51,7 +70,6 @@ public class LoginActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
         btnLogin = findViewById(R.id.btn_login);
-        btnCreateAccount = findViewById(R.id.btn_create_account);
         progressBar = findViewById(R.id.progress_bar);
 
         // Initialize Retrofit Service
@@ -73,10 +91,6 @@ public class LoginActivity extends AppCompatActivity {
 
             performLogin(email, password);
         });
-
-        btnCreateAccount.setOnClickListener(v -> {
-            Toast.makeText(LoginActivity.this, "Registration feature coming soon!", Toast.LENGTH_SHORT).show();
-        });
     }
 
     private void performLogin(String email, String password) {
@@ -84,19 +98,24 @@ public class LoginActivity extends AppCompatActivity {
         setLoading(true);
 
         LoginRequest loginRequest = new LoginRequest(email, password);
-        
+
         // Supabase expects grant_type="password" for email/password auth
         apiService.login("password", loginRequest).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(@NonNull Call<LoginResponse> call, @NonNull Response<LoginResponse> response) {
                 setLoading(false);
-                
+
                 if (response.isSuccessful() && response.body() != null) {
-                    // Save access token to SharedPreferences
-                    saveSession(response.body().getAccessToken());
-                    
+
+                    // Save login session
+                    saveSession(
+                            response.body().getAccessToken(),
+                            response.body().getUser().getId(),
+                            response.body().getUser().getEmail()
+                    );
+
                     Toast.makeText(LoginActivity.this, "Login Successful", Toast.LENGTH_SHORT).show();
-                    
+
                     // Navigate to Main Dashboard
                     Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                     startActivity(intent);
@@ -115,16 +134,30 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setLoading(boolean isLoading) {
-        progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        if (progressBar != null) {
+            progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        }
         btnLogin.setEnabled(!isLoading);
         etEmail.setEnabled(!isLoading);
         etPassword.setEnabled(!isLoading);
     }
 
-    private void saveSession(String token) {
-        SharedPreferences sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE);
+    private void saveSession(String token, String userId, String email) {
+
+        SharedPreferences sharedPreferences =
+                getSharedPreferences("user_session", Context.MODE_PRIVATE);
+
         SharedPreferences.Editor editor = sharedPreferences.edit();
+
+        // Save auth token
         editor.putString("auth_token", token);
+
+        // Save logged in user id
+        editor.putString("user_id", userId);
+
+        // Save logged in email
+        editor.putString("user_email", email);
+
         editor.apply();
     }
 }

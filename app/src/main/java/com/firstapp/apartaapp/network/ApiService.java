@@ -3,6 +3,7 @@ package com.firstapp.apartaapp.network;
 import com.firstapp.apartaapp.models.Announcement;
 import com.firstapp.apartaapp.models.LoginRequest;
 import com.firstapp.apartaapp.models.LoginResponse;
+import com.firstapp.apartaapp.models.User;
 
 import java.util.List;
 
@@ -24,4 +25,10 @@ public interface ApiService {
     // Get announcements from Supabase
     @GET("rest/v1/announcements")
     Call<List<Announcement>> getAnnouncements();
+
+    // Get user profile - Added rest/v1/ and eq query format
+    @GET("rest/v1/users")
+    Call<List<User>> getUserByEmail(
+            @Query("email") String email
+    );
 }
